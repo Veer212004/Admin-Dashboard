@@ -3,6 +3,7 @@ import cors from 'cors';
 import { createServer } from 'http';
 import { Server as SocketIOServer } from 'socket.io';
 import dotenv from 'dotenv';
+import { emailService } from './services/EmailService';
 import path from 'path';
 import rateLimit from 'express-rate-limit';
 
@@ -27,9 +28,21 @@ console.log('[Init] SMTP_HOST:', process.env.SMTP_HOST);
 
 const app = express();
 const httpServer = createServer(app);
+
+// Parse allowed origins from env (comma-separated)
+const allowedOrigins = (process.env.FRONTEND_URL || 'http://localhost:4200')
+  .split(',')
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+
 const io = new SocketIOServer(httpServer, {
   cors: {
-    origin: process.env.FRONTEND_URL || 'http://localhost:4200',
+    origin: (origin, callback) => {
+      if (!origin || allowedOrigins.includes(origin)) {
+        return callback(null, origin || allowedOrigins[0]);
+      }
+      return callback(new Error('Not allowed by CORS'));
+    },
     methods: ['GET', 'POST'],
     credentials: true,
   },
@@ -37,11 +50,6 @@ const io = new SocketIOServer(httpServer, {
 });
 
 socketManager.setIO(io);
-
-// Middleware
-const allowedOrigins = (process.env.FRONTEND_URL || 'http://localhost:4200')
-  .split(',')
-  .map((origin) => origin.trim());
 
 app.use(cors({
   origin: (origin, callback) => {
@@ -83,6 +91,28 @@ app.get('/health', (req: Request, res: Response) => {
 });
 
 // API Routes
+// Debug route: quick test to validate SMTP settings and email sending
+app.post('/api/debug/send-test-email', async (req: Request, res: Response) => {
+  const to = req.body?.to || process.env.SMTP_TEST_RECIPIENT || process.env.SMTP_USER;
+  if (!to) {
+    return res.status(400).json({ message: 'No recipient configured. Provide `to` in body or set SMTP_TEST_RECIPIENT' });
+  }
+
+  try {
+    await emailService.sendEmail({
+      to,
+      subject: 'Test Email from Admin Dashboard',
+      html: `<p>This is a test email from the Admin Dashboard server. If you received this, SMTP is working.</p>`,
+      text: 'This is a test email from the Admin Dashboard server. If you received this, SMTP is working.'
+    });
+
+    return res.json({ message: 'Test email sent (or queued). Check recipient inbox and server logs.' });
+  } catch (error: any) {
+    console.error('Debug test email failed:', error);
+    return res.status(500).json({ message: 'Failed to send test email', error: error?.message || String(error) });
+  }
+});
+
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/sessions', sessionRoutes);

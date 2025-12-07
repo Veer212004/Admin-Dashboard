@@ -37,11 +37,10 @@ export const register = async (req: Request, res: Response): Promise<void> => {
 
     const verificationToken = generateVerificationToken(email);
     const emailEnabled = Boolean(process.env.SMTP_HOST);
-    try {
-      await emailService.sendVerificationEmail(email, verificationToken);
-    } catch (error) {
-      console.warn('Verification email skipped:', error instanceof Error ? error.message : error);
-    }
+    // Send verification email asynchronously so SMTP problems do not block registration
+    emailService.sendVerificationEmail(email, verificationToken).catch((error) => {
+      console.warn('Verification email failed (non-blocking):', error instanceof Error ? error.message : error);
+    });
 
     await ActivityLog.create({
       actor: user._id,
@@ -86,11 +85,10 @@ export const resendVerification = async (req: Request, res: Response): Promise<v
     const verificationToken = generateVerificationToken(email);
     const emailEnabled = Boolean(process.env.SMTP_HOST);
 
-    try {
-      await emailService.sendVerificationEmail(email, verificationToken);
-    } catch (error) {
-      console.warn('Verification email skipped:', error instanceof Error ? error.message : error);
-    }
+    // Send verification email asynchronously so SMTP problems do not block response
+    emailService.sendVerificationEmail(email, verificationToken).catch((error) => {
+      console.warn('Resend verification email failed (non-blocking):', error instanceof Error ? error.message : error);
+    });
 
     res.json({
       message: emailEnabled
@@ -317,7 +315,10 @@ export const forgotPassword = async (req: Request, res: Response): Promise<void>
     }
 
     const resetToken = generateVerificationToken();
-    await emailService.sendPasswordResetEmail(email, resetToken);
+    // Fire-and-forget password reset email to avoid blocking in case SMTP is unreachable
+    emailService.sendPasswordResetEmail(email, resetToken).catch((error) => {
+      console.warn('Password reset email failed (non-blocking):', error instanceof Error ? error.message : error);
+    });
 
     await ActivityLog.create({
       actor: user._id,

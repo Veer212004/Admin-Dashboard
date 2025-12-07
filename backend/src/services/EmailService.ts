@@ -11,6 +11,10 @@ class EmailService {
   private transporter: Transporter | null = null;
   private enabled: boolean = false;
 
+  constructor() {
+    console.log('[EmailService] EmailService instance created');
+  }
+
   private initializeTransporter() {
     if (this.transporter) return; // Already initialized
     
@@ -28,7 +32,25 @@ class EmailService {
         user: process.env.SMTP_USER,
         pass: process.env.SMTP_PASS,
       },
+      // Prevent long hangs when SMTP is unreachable
+      connectionTimeout: parseInt(process.env.SMTP_CONNECTION_TIMEOUT || '10000'),
+      greetingTimeout: parseInt(process.env.SMTP_GREETING_TIMEOUT || '5000'),
+      // Some providers (dev/test) may use self-signed certs
+      tls: { rejectUnauthorized: process.env.SMTP_REJECT_UNAUTHORIZED !== 'false' },
     });
+
+    // Verify transporter connectivity asynchronously and update enabled flag
+    // This prevents silent failures later when sending emails.
+    this.transporter.verify()
+      .then(() => {
+        console.log('[EmailService] SMTP transporter verified');
+        this.enabled = true;
+      })
+      .catch((err) => {
+        console.error('[EmailService] SMTP transporter verification failed:', err && err.message ? err.message : err);
+        // disable sending if verification fails
+        this.enabled = false;
+      });
   }
 
   async sendEmail(options: EmailOptions): Promise<void> {
