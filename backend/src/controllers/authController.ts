@@ -37,9 +37,11 @@ export const register = async (req: Request, res: Response): Promise<void> => {
 
     const verificationToken = generateVerificationToken(email);
     const emailEnabled = Boolean(process.env.SMTP_HOST);
+    
     // Send verification email asynchronously so SMTP problems do not block registration
     emailService.sendVerificationEmail(email, verificationToken).catch((error) => {
-      console.warn('Verification email failed (non-blocking):', error instanceof Error ? error.message : error);
+      console.error('❌ Verification email failed (non-blocking):', error instanceof Error ? error.message : error);
+      console.error('Full error:', error);
     });
 
     await ActivityLog.create({

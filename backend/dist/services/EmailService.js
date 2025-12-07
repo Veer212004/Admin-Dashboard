@@ -8,19 +8,22 @@ const nodemailer_1 = __importDefault(require("nodemailer"));
 class EmailService {
     constructor() {
         this.transporter = null;
-        this.enabled = false;
+        this.verificationPromise = null;
         console.log('[EmailService] EmailService instance created');
     }
     initializeTransporter() {
         if (this.transporter)
             return; // Already initialized
-        this.enabled = Boolean(process.env.SMTP_HOST);
-        console.log('[EmailService] SMTP_HOST:', process.env.SMTP_HOST);
+        const smtpHost = process.env.SMTP_HOST;
+        console.log('[EmailService] SMTP_HOST:', smtpHost);
         console.log('[EmailService] SMTP_PORT:', process.env.SMTP_PORT);
         console.log('[EmailService] SMTP_USER:', process.env.SMTP_USER);
-        console.log('[EmailService] Email enabled:', this.enabled);
+        if (!smtpHost) {
+            console.warn('[EmailService] SMTP_HOST not set. Email disabled.');
+            return;
+        }
         this.transporter = nodemailer_1.default.createTransport({
-            host: process.env.SMTP_HOST,
+            host: smtpHost,
             port: parseInt(process.env.SMTP_PORT || '587'),
             secure: parseInt(process.env.SMTP_PORT || '587') === 465,
             auth: {
@@ -33,24 +36,31 @@ class EmailService {
             // Some providers (dev/test) may use self-signed certs
             tls: { rejectUnauthorized: process.env.SMTP_REJECT_UNAUTHORIZED !== 'false' },
         });
-        // Verify transporter connectivity asynchronously and update enabled flag
-        // This prevents silent failures later when sending emails.
-        this.transporter.verify()
+        // Verify transporter connectivity
+        this.verificationPromise = this.transporter.verify()
             .then(() => {
-            console.log('[EmailService] SMTP transporter verified');
-            this.enabled = true;
+            console.log('[EmailService] ✓ SMTP transporter verified successfully');
+            return true;
         })
             .catch((err) => {
-            console.error('[EmailService] SMTP transporter verification failed:', err && err.message ? err.message : err);
-            // disable sending if verification fails
-            this.enabled = false;
+            console.error('[EmailService] ✗ SMTP verification failed:', err?.message || err);
+            console.error('[EmailService] Full error:', err);
+            return false;
         });
     }
     async sendEmail(options) {
         this.initializeTransporter();
-        if (!this.enabled) {
-            console.warn('Email disabled: SMTP_HOST not set. Skipping send.');
+        if (!this.transporter) {
+            console.warn('[EmailService] Email disabled: SMTP_HOST not set. Skipping send.');
             return;
+        }
+        // Wait for verification to complete
+        if (this.verificationPromise) {
+            const isVerified = await this.verificationPromise;
+            if (!isVerified) {
+                console.error('[EmailService] Cannot send email: SMTP verification failed');
+                throw new Error('SMTP not verified. Check your SMTP credentials.');
+            }
         }
         try {
             console.log(`[EmailService] Sending email to ${options.to}...`);

@@ -60,7 +60,8 @@ const register = async (req, res) => {
         const emailEnabled = Boolean(process.env.SMTP_HOST);
         // Send verification email asynchronously so SMTP problems do not block registration
         EmailService_1.emailService.sendVerificationEmail(email, verificationToken).catch((error) => {
-            console.warn('Verification email failed (non-blocking):', error instanceof Error ? error.message : error);
+            console.error('❌ Verification email failed (non-blocking):', error instanceof Error ? error.message : error);
+            console.error('Full error:', error);
         });
         await ActivityLog_1.ActivityLog.create({
             actor: user._id,
