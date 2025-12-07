@@ -49,34 +49,34 @@ interface UserCard {
         </div>
 
         <!-- Stats Summary -->
-        <div class="grid grid-cols-4 gap-4">
-          <div class="bg-gradient-to-br from-amber-50 to-amber-100 rounded-xl p-4 border border-amber-200">
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
+          <div class="bg-gradient-to-br from-amber-50 to-amber-100 rounded-xl p-3 md:p-4 border border-amber-200">
             <div class="flex items-center gap-2 mb-1">
-              <span class="text-2xl">📧</span>
-              <span class="text-xs font-semibold text-amber-800">Pending Verification</span>
+              <span class="text-xl md:text-2xl">📧</span>
+              <span class="text-xs font-semibold text-amber-800 leading-tight">Pend Verif</span>
             </div>
-            <p class="text-2xl font-bold text-amber-900">{{ pendingUsers.length }}</p>
+            <p class="text-2xl md:text-3xl font-bold text-amber-900">{{ pendingUsers.length }}</p>
           </div>
-          <div class="bg-gradient-to-br from-green-50 to-green-100 rounded-xl p-4 border border-green-200">
+          <div class="bg-gradient-to-br from-green-50 to-green-100 rounded-xl p-3 md:p-4 border border-green-200">
             <div class="flex items-center gap-2 mb-1">
-              <span class="text-2xl">✅</span>
-              <span class="text-xs font-semibold text-green-800">Active Online</span>
+              <span class="text-xl md:text-2xl">✅</span>
+              <span class="text-xs font-semibold text-green-800 leading-tight">Active Online</span>
             </div>
-            <p class="text-2xl font-bold text-green-900">{{ activeUsers.length }}</p>
+            <p class="text-2xl md:text-3xl font-bold text-green-900">{{ activeUsers.length }}</p>
           </div>
-          <div class="bg-gradient-to-br from-red-50 to-red-100 rounded-xl p-4 border border-red-200">
+          <div class="bg-gradient-to-br from-red-50 to-red-100 rounded-xl p-3 md:p-4 border border-red-200">
             <div class="flex items-center gap-2 mb-1">
-              <span class="text-2xl">🚫</span>
-              <span class="text-xs font-semibold text-red-800">Suspended</span>
+              <span class="text-xl md:text-2xl">🚫</span>
+              <span class="text-xs font-semibold text-red-800 leading-tight">Susp</span>
             </div>
-            <p class="text-2xl font-bold text-red-900">{{ suspendedUsers.length }}</p>
+            <p class="text-2xl md:text-3xl font-bold text-red-900">{{ suspendedUsers.length }}</p>
           </div>
-          <div class="bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl p-4 border border-purple-200">
+          <div class="bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl p-3 md:p-4 border border-purple-200">
             <div class="flex items-center gap-2 mb-1">
-              <span class="text-2xl">⏳</span>
-              <span class="text-xs font-semibold text-purple-800">Role Change</span>
+              <span class="text-xl md:text-2xl">⏳</span>
+              <span class="text-xs font-semibold text-purple-800 leading-tight">Role Change</span>
             </div>
-            <p class="text-2xl font-bold text-purple-900">{{ roleChangeUsers.length }}</p>
+            <p class="text-2xl md:text-3xl font-bold text-purple-900">{{ roleChangeUsers.length }}</p>
           </div>
         </div>
       </div>
