@@ -28,22 +28,39 @@ class EmailService {
       return;
     }
     
+    const smtpPort = parseInt(process.env.SMTP_PORT || '587');
+    const isGmail = smtpHost.includes('gmail');
+    
     this.transporter = nodemailer.createTransport({
       host: smtpHost,
-      port: parseInt(process.env.SMTP_PORT || '587'),
-      secure: parseInt(process.env.SMTP_PORT || '587') === 465,
+      port: smtpPort,
+      secure: smtpPort === 465,
       auth: {
         user: process.env.SMTP_USER,
         pass: process.env.SMTP_PASS,
       },
+      // Gmail-specific settings
+      ...(isGmail && {
+        service: 'gmail',
+        auth: {
+          user: process.env.SMTP_USER,
+          pass: process.env.SMTP_PASS,
+        },
+      }),
       // Prevent long hangs when SMTP is unreachable
       connectionTimeout: parseInt(process.env.SMTP_CONNECTION_TIMEOUT || '10000'),
       greetingTimeout: parseInt(process.env.SMTP_GREETING_TIMEOUT || '5000'),
       // Some providers (dev/test) may use self-signed certs
-      tls: { rejectUnauthorized: process.env.SMTP_REJECT_UNAUTHORIZED !== 'false' },
+      tls: { 
+        rejectUnauthorized: process.env.SMTP_REJECT_UNAUTHORIZED !== 'false',
+        minVersion: 'TLSv1.2'
+      },
+      debug: process.env.NODE_ENV !== 'production',
+      logger: process.env.NODE_ENV !== 'production',
     });
 
-    // Verify transporter connectivity
+    // Verify transporter connectivity asynchronously
+    // Don't block on verification - let actual send attempts reveal issues
     this.verificationPromise = this.transporter.verify()
       .then(() => {
         console.log('[EmailService] ✓ SMTP transporter verified successfully');
@@ -51,7 +68,10 @@ class EmailService {
       })
       .catch((err) => {
         console.error('[EmailService] ✗ SMTP verification failed:', err?.message || err);
+        console.error('[EmailService] Error code:', err?.code);
+        console.error('[EmailService] Error response:', err?.response);
         console.error('[EmailService] Full error:', err);
+        // Still return false but don't prevent initialization
         return false;
       });
   }
@@ -64,14 +84,8 @@ class EmailService {
       return;
     }
 
-    // Wait for verification to complete
-    if (this.verificationPromise) {
-      const isVerified = await this.verificationPromise;
-      if (!isVerified) {
-        console.error('[EmailService] Cannot send email: SMTP verification failed');
-        throw new Error('SMTP not verified. Check your SMTP credentials.');
-      }
-    }
+    // Try to send anyway - let the actual send fail with detailed error
+    // This way we get better error messages than just "not verified"
     try {
       console.log(`[EmailService] Sending email to ${options.to}...`);
       const result = await this.transporter!.sendMail({
