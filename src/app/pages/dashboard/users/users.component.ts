@@ -62,8 +62,8 @@ import { User } from '../../../models/auth.model';
           </button>
         </div>
 
-        <!-- Column Headers -->
-        <div class="bg-gradient-to-r from-indigo-50 via-purple-50 to-pink-50 rounded-xl p-4 mb-3 border border-indigo-100 shadow-sm">
+        <!-- Column Headers - Hidden on mobile -->
+        <div class="hidden lg:block bg-gradient-to-r from-indigo-50 via-purple-50 to-pink-50 rounded-xl p-4 mb-3 border border-indigo-100 shadow-sm">
           <div class="flex items-center gap-4">
             <!-- User Info Column -->
             <div class="flex items-center gap-2 flex-1">
@@ -111,7 +111,99 @@ import { User } from '../../../models/auth.model';
         <div class="space-y-3">
           <div *ngFor="let user of users" 
                class="bg-white rounded-xl shadow-sm border border-slate-200 p-4 hover:shadow-md transition-all duration-200 hover:border-indigo-200">
-            <div class="flex items-center gap-4">
+            
+            <!-- Mobile Layout -->
+            <div class="lg:hidden space-y-3">
+              <!-- User Info -->
+              <div class="flex items-center gap-3">
+                <div class="relative">
+                  <div class="w-12 h-12 rounded-xl flex items-center justify-center text-white font-bold text-lg shadow-md"
+                       [style.background]="getAvatarGradient(user.name)">
+                    {{ getInitials(user.name) }}
+                  </div>
+                  <div *ngIf="user.online" 
+                       class="absolute -bottom-1 -right-1 w-3 h-3 bg-green-500 border-2 border-white rounded-full"></div>
+                </div>
+                <div class="flex-1 min-w-0">
+                  <div class="flex items-center gap-2">
+                    <h3 class="text-sm font-semibold text-slate-900 truncate">{{ user.name }}</h3>
+                    <span *ngIf="user.verified" class="text-blue-500" title="Verified">✓</span>
+                  </div>
+                  <p class="text-xs text-slate-500 truncate">{{ user.email }}</p>
+                </div>
+              </div>
+
+              <!-- Role & Status Badges -->
+              <div class="flex flex-wrap gap-2">
+                <div class="px-3 py-1.5 rounded-lg text-xs font-semibold"
+                     [ngClass]="{
+                       'bg-purple-50 text-purple-700 border border-purple-200': user.role === 'admin',
+                       'bg-cyan-50 text-cyan-700 border border-cyan-200': user.role === 'user'
+                     }">
+                  {{ user.role === 'admin' ? '👑 Admin' : '👤 User' }}
+                </div>
+                <div class="px-3 py-1.5 rounded-lg text-xs font-semibold"
+                     [ngClass]="{
+                       'bg-green-50 text-green-700 border border-green-200': user.verified,
+                       'bg-amber-50 text-amber-700 border border-amber-200': !user.verified
+                     }">
+                  {{ user.verified ? '✅ Verified' : '⏳ Pending' }}
+                </div>
+                <div class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium"
+                     [ngClass]="{
+                       'bg-emerald-50 text-emerald-700': user.online,
+                       'bg-slate-100 text-slate-500': !user.online
+                     }">
+                  <span class="w-1.5 h-1.5 rounded-full" 
+                        [ngClass]="{
+                          'bg-emerald-500 animate-pulse': user.online,
+                          'bg-slate-400': !user.online
+                        }"></span>
+                  {{ user.online ? 'Online' : 'Offline' }}
+                </div>
+              </div>
+
+              <!-- Action Buttons -->
+              <div class="flex flex-wrap gap-2">
+                <div *ngIf="isAdmin && !isCurrentUser(user)" class="flex flex-wrap gap-2 w-full">
+                  <button 
+                    (click)="toggleRole(user)" 
+                    [disabled]="user.loading"
+                    class="flex-1 px-3 py-2 bg-amber-50 hover:bg-amber-100 text-amber-700 font-semibold rounded-lg transition-colors border border-amber-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1.5 text-sm"
+                    [title]="user.role === 'admin' ? 'Demote to User' : 'Promote to Admin'">
+                    <span *ngIf="!user.loading">{{ user.role === 'admin' ? '👤' : '👑' }}</span>
+                    <span *ngIf="user.loading">⏳</span>
+                    <span>{{ user.role === 'admin' ? 'Demote' : 'Promote' }}</span>
+                  </button>
+
+                  <button 
+                    (click)="deleteUser(user)" 
+                    [disabled]="user.loading"
+                    class="flex-1 px-3 py-2 bg-red-50 hover:bg-red-100 text-red-700 font-semibold rounded-lg transition-colors border border-red-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1.5 text-sm"
+                    title="Delete User">
+                    <span *ngIf="!user.loading">🗑️</span>
+                    <span *ngIf="user.loading">⏳</span>
+                    <span>Delete</span>
+                  </button>
+                </div>
+
+                <div *ngIf="isAdmin && isCurrentUser(user)" class="w-full">
+                  <div class="px-3 py-2 bg-blue-50 text-blue-700 font-semibold rounded-lg border border-blue-200 text-sm text-center">
+                    You (Admin)
+                  </div>
+                </div>
+
+                <button 
+                  *ngIf="!isAdmin"
+                  (click)="viewUser(user)" 
+                  class="w-full px-3 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-semibold rounded-lg transition-colors border border-indigo-200 text-sm">
+                  View Details →
+                </button>
+              </div>
+            </div>
+
+            <!-- Desktop Layout -->
+            <div class="hidden lg:flex items-center gap-4">
               <!-- User Info with Avatar -->
               <div class="flex items-center gap-4 flex-1">
                 <div class="relative">
@@ -222,25 +314,25 @@ import { User } from '../../../models/auth.model';
         </div>
 
         <!-- Pagination -->
-        <div class="mt-6 flex justify-between items-center bg-white rounded-xl p-4 border border-slate-200">
-          <span class="text-slate-600 font-medium">Showing {{ users.length }} of {{ total }} users</span>
+        <div class="mt-6 flex flex-col sm:flex-row justify-between items-center gap-4 bg-white rounded-xl p-4 border border-slate-200">
+          <span class="text-slate-600 font-medium text-sm">Showing {{ users.length }} of {{ total }} users</span>
           <div class="flex gap-2">
             <button
               [disabled]="page === 1"
               (click)="previousPage()"
-              class="px-5 py-2 bg-white border border-slate-300 rounded-xl disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-50 transition font-medium text-slate-700"
+              class="px-4 py-2 bg-white border border-slate-300 rounded-xl disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-50 transition font-medium text-slate-700 text-sm"
             >
-              ← Previous
+              ← <span class="hidden sm:inline">Previous</span>
             </button>
-            <div class="px-5 py-2 bg-indigo-50 border border-indigo-200 rounded-xl font-semibold text-indigo-700">
-              Page {{ page }} of {{ pages }}
+            <div class="px-4 py-2 bg-indigo-50 border border-indigo-200 rounded-xl font-semibold text-indigo-700 text-sm">
+              {{ page }}/{{ pages }}
             </div>
             <button
               [disabled]="page === pages"
               (click)="nextPage()"
-              class="px-5 py-2 bg-white border border-slate-300 rounded-xl disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-50 transition font-medium text-slate-700"
+              class="px-4 py-2 bg-white border border-slate-300 rounded-xl disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-50 transition font-medium text-slate-700 text-sm"
             >
-              Next →
+              <span class="hidden sm:inline">Next</span> →
             </button>
           </div>
         </div>
