@@ -2,6 +2,46 @@
 
 A production-ready, fully functional real-time admin dashboard built with **Angular 20**, **Node.js/Express**, **MongoDB**, and **Socket.io**.
 
+## Assignment Submission (Use this section for your email reply)
+
+Follow these exact steps when submitting the assignment by email (reply-all in the same mail thread):
+
+- **Platform:** You may use any platform to complete the assignment — this repo is your submission.
+- **Deadline:** Submit by **Sunday EOD** (include the date in the email subject if required).
+- **Reply-All:** Reply on the same mail trail only — do not send a separate email.
+- **Attach README:** Include this `README.md` contents inline or attach the file in the email.
+- **Include Screenshots:** Attach screenshots of all required pages (see "Screenshots & Submission Checklist" section below).
+
+### What to include in the email body (copy/paste)
+
+Subject: [Assignment Submission] Admin Dashboard — <Your Name> — Submission
+
+Body:
+```
+Hello,
+
+Please find my assignment submission attached in reply to this mail thread.
+
+Repository: (attached) or link to repository if requested
+Project: Admin Dashboard
+Author: Veeresh Hedderi (or replace with your name)
+Deadline: Submitted by Sunday EOD
+
+Setup & Run (short instructions):
+- Backend: cd backend && npm install && copy .env.example to .env and set MONGO_URI & SMTP vars, then npm run dev
+- Frontend: cd .. (project root) && npm install && npm start
+
+Screenshots: Attached (login, dashboard, kanban, users, notifications)
+
+Please let me know if you need any further details.
+
+Best regards,
+<Your Name>
+```
+
+Include this README and the screenshots folder when replying.
+
+
 ## 🚀 Quick Start
 
 ### Prerequisites

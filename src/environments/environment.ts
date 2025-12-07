@@ -1,6 +1,6 @@
 export const environment = {
   production: false,
-  apiUrl: 'http://localhost:5000/api',
-  socketUrl: 'http://localhost:5000',
+  apiUrl: 'https://admin-dashboard-b14w.onrender.com/api',
+  socketUrl: 'https://admin-dashboard-b14w.onrender.com',
   socketPath: '/socket.io',
 };
