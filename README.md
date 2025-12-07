@@ -438,4 +438,3 @@ For issues and questions:
 
 ---
 
-**Built with ❤️ for production-ready admin dashboards**
