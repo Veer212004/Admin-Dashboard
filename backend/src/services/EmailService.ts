@@ -28,13 +28,18 @@ class EmailService {
       return;
     }
     
-    const smtpPort = parseInt(process.env.SMTP_PORT || '587');
+    const smtpPort = parseInt(process.env.SMTP_PORT || '465');
     const isGmail = smtpHost.includes('gmail');
+    
+    // For platforms like Render that block port 587, use port 465 (SSL) instead
+    const useSSL = smtpPort === 465;
+    
+    console.log('[EmailService] Configuring SMTP with port:', smtpPort, 'SSL:', useSSL);
     
     this.transporter = nodemailer.createTransport({
       host: smtpHost,
       port: smtpPort,
-      secure: smtpPort === 465,
+      secure: useSSL,
       auth: {
         user: process.env.SMTP_USER,
         pass: process.env.SMTP_PASS,
@@ -42,18 +47,16 @@ class EmailService {
       // Gmail-specific settings
       ...(isGmail && {
         service: 'gmail',
-        auth: {
-          user: process.env.SMTP_USER,
-          pass: process.env.SMTP_PASS,
-        },
       }),
       // Prevent long hangs when SMTP is unreachable
-      connectionTimeout: parseInt(process.env.SMTP_CONNECTION_TIMEOUT || '10000'),
-      greetingTimeout: parseInt(process.env.SMTP_GREETING_TIMEOUT || '5000'),
-      // Some providers (dev/test) may use self-signed certs
+      connectionTimeout: parseInt(process.env.SMTP_CONNECTION_TIMEOUT || '15000'),
+      greetingTimeout: parseInt(process.env.SMTP_GREETING_TIMEOUT || '10000'),
+      socketTimeout: parseInt(process.env.SMTP_SOCKET_TIMEOUT || '15000'),
+      // TLS settings
       tls: { 
         rejectUnauthorized: process.env.SMTP_REJECT_UNAUTHORIZED !== 'false',
-        minVersion: 'TLSv1.2'
+        minVersion: 'TLSv1.2',
+        ciphers: 'HIGH:!aNULL:!eNULL:!EXPORT:!DES:!RC4:!MD5:!PSK:!SRP:!CAMELLIA'
       },
       debug: process.env.NODE_ENV !== 'production',
       logger: process.env.NODE_ENV !== 'production',

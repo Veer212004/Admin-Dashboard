@@ -29,6 +29,9 @@ console.log('[Init] SMTP_HOST:', process.env.SMTP_HOST);
 const app = express();
 const httpServer = createServer(app);
 
+// Trust proxy - required for Render, Heroku, etc. (behind reverse proxy)
+app.set('trust proxy', 1);
+
 // Parse allowed origins from env (comma-separated)
 const allowedOrigins = (process.env.FRONTEND_URL || 'http://localhost:4200')
   .split(',')
