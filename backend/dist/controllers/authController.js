@@ -58,12 +58,10 @@ const register = async (req, res) => {
         await user.save();
         const verificationToken = (0, token_1.generateVerificationToken)(email);
         const emailEnabled = Boolean(process.env.SMTP_HOST);
-        try {
-            await EmailService_1.emailService.sendVerificationEmail(email, verificationToken);
-        }
-        catch (error) {
-            console.warn('Verification email skipped:', error instanceof Error ? error.message : error);
-        }
+        // Send verification email asynchronously so SMTP problems do not block registration
+        EmailService_1.emailService.sendVerificationEmail(email, verificationToken).catch((error) => {
+            console.warn('Verification email failed (non-blocking):', error instanceof Error ? error.message : error);
+        });
         await ActivityLog_1.ActivityLog.create({
             actor: user._id,
             action: 'REGISTER',
@@ -102,12 +100,10 @@ const resendVerification = async (req, res) => {
         }
         const verificationToken = (0, token_1.generateVerificationToken)(email);
         const emailEnabled = Boolean(process.env.SMTP_HOST);
-        try {
-            await EmailService_1.emailService.sendVerificationEmail(email, verificationToken);
-        }
-        catch (error) {
-            console.warn('Verification email skipped:', error instanceof Error ? error.message : error);
-        }
+        // Send verification email asynchronously so SMTP problems do not block response
+        EmailService_1.emailService.sendVerificationEmail(email, verificationToken).catch((error) => {
+            console.warn('Resend verification email failed (non-blocking):', error instanceof Error ? error.message : error);
+        });
         res.json({
             message: emailEnabled
                 ? 'Verification email resent. Please check your inbox.'
@@ -305,7 +301,10 @@ const forgotPassword = async (req, res) => {
             return;
         }
         const resetToken = (0, token_1.generateVerificationToken)();
-        await EmailService_1.emailService.sendPasswordResetEmail(email, resetToken);
+        // Fire-and-forget password reset email to avoid blocking in case SMTP is unreachable
+        EmailService_1.emailService.sendPasswordResetEmail(email, resetToken).catch((error) => {
+            console.warn('Password reset email failed (non-blocking):', error instanceof Error ? error.message : error);
+        });
         await ActivityLog_1.ActivityLog.create({
             actor: user._id,
             action: 'FORGOT_PASSWORD',

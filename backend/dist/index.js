@@ -9,6 +9,7 @@ const cors_1 = __importDefault(require("cors"));
 const http_1 = require("http");
 const socket_io_1 = require("socket.io");
 const dotenv_1 = __importDefault(require("dotenv"));
+const EmailService_1 = require("./services/EmailService");
 const path_1 = __importDefault(require("path"));
 const express_rate_limit_1 = __importDefault(require("express-rate-limit"));
 const mongodb_1 = require("./config/mongodb");
@@ -30,9 +31,19 @@ console.log('[Init] SMTP_HOST:', process.env.SMTP_HOST);
 const app = (0, express_1.default)();
 const httpServer = (0, http_1.createServer)(app);
 exports.httpServer = httpServer;
+// Parse allowed origins from env (comma-separated)
+const allowedOrigins = (process.env.FRONTEND_URL || 'http://localhost:4200')
+    .split(',')
+    .map((origin) => origin.trim())
+    .filter(Boolean);
 const io = new socket_io_1.Server(httpServer, {
     cors: {
-        origin: process.env.FRONTEND_URL || 'http://localhost:4200',
+        origin: (origin, callback) => {
+            if (!origin || allowedOrigins.includes(origin)) {
+                return callback(null, origin || allowedOrigins[0]);
+            }
+            return callback(new Error('Not allowed by CORS'));
+        },
         methods: ['GET', 'POST'],
         credentials: true,
     },
@@ -40,10 +51,6 @@ const io = new socket_io_1.Server(httpServer, {
 });
 exports.io = io;
 socket_1.socketManager.setIO(io);
-// Middleware
-const allowedOrigins = (process.env.FRONTEND_URL || 'http://localhost:4200')
-    .split(',')
-    .map((origin) => origin.trim());
 app.use((0, cors_1.default)({
     origin: (origin, callback) => {
         if (!origin || allowedOrigins.includes(origin)) {
@@ -78,6 +85,26 @@ app.get('/health', (req, res) => {
     res.json({ status: 'OK', timestamp: new Date().toISOString() });
 });
 // API Routes
+// Debug route: quick test to validate SMTP settings and email sending
+app.post('/api/debug/send-test-email', async (req, res) => {
+    const to = req.body?.to || process.env.SMTP_TEST_RECIPIENT || process.env.SMTP_USER;
+    if (!to) {
+        return res.status(400).json({ message: 'No recipient configured. Provide `to` in body or set SMTP_TEST_RECIPIENT' });
+    }
+    try {
+        await EmailService_1.emailService.sendEmail({
+            to,
+            subject: 'Test Email from Admin Dashboard',
+            html: `<p>This is a test email from the Admin Dashboard server. If you received this, SMTP is working.</p>`,
+            text: 'This is a test email from the Admin Dashboard server. If you received this, SMTP is working.'
+        });
+        return res.json({ message: 'Test email sent (or queued). Check recipient inbox and server logs.' });
+    }
+    catch (error) {
+        console.error('Debug test email failed:', error);
+        return res.status(500).json({ message: 'Failed to send test email', error: error?.message || String(error) });
+    }
+});
 app.use('/api/auth', authRoutes_1.default);
 app.use('/api/users', userRoutes_1.default);
 app.use('/api/sessions', sessionRoutes_1.default);
