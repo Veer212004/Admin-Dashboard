@@ -1,8 +1,9 @@
 export const environment = {
   production: true,
-  apiUrl: 'https://your-backend-url.com/api', // TODO: Update this after deploying backend
-  socketUrl: 'https://your-backend-url.com'    // TODO: Update this after deploying backend
+  apiUrl: 'https://admin-dashboard-b14w.onrender.com/api',
+  socketUrl: 'https://admin-dashboard-b14w.onrender.com'
 };
 
-// Your frontend is deployed at: https://admin-dashboard-d924.vercel.app/
-// Make sure to update backend CORS to allow this URL
+// Frontend: https://admin-dashboard-d924.vercel.app/
+// Backend:  https://admin-dashboard-b14w.onrender.com
+// CORS: ensure backend FRONTEND_URL includes the frontend URL (already set)
