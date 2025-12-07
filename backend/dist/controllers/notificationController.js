@@ -122,9 +122,11 @@ const broadcastMessage = async (req, res) => {
                 user: user._id,
                 createdAt: notification.createdAt,
             });
-            // Optionally send email
+            // Optionally send email asynchronously
             if (filter?.sendEmail) {
-                await EmailService_1.emailService.sendBroadcastMessage(user.email, title, message);
+                EmailService_1.emailService.sendBroadcastMessage(user.email, title, message).catch((error) => {
+                    console.error('❌ Broadcast email failed (non-blocking):', error instanceof Error ? error.message : error);
+                });
             }
         }
         await Notification_1.Notification.insertMany(notifications);

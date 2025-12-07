@@ -215,7 +215,11 @@ export const changeUserRole = async (req: Request, res: Response): Promise<void>
       user: id,
     });
 
-    await emailService.sendRoleChangeEmail(user.email, role);
+    // Send email asynchronously to prevent blocking
+    emailService.sendRoleChangeEmail(user.email, role).catch((error) => {
+      console.error('❌ Role change email failed (non-blocking):', error instanceof Error ? error.message : error);
+      console.error('Full error:', error);
+    });
 
     socketManager.emitRoleChanged(id, role);
     socketManager.emitUserUpdated(id, { role });

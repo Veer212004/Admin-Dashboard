@@ -138,9 +138,11 @@ export const broadcastMessage = async (req: Request, res: Response): Promise<voi
         createdAt: notification.createdAt,
       });
 
-      // Optionally send email
+      // Optionally send email asynchronously
       if (filter?.sendEmail) {
-        await emailService.sendBroadcastMessage(user.email, title, message);
+        emailService.sendBroadcastMessage(user.email, title, message).catch((error) => {
+          console.error('❌ Broadcast email failed (non-blocking):', error instanceof Error ? error.message : error);
+        });
       }
     }
 

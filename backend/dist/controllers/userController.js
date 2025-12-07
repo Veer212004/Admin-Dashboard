@@ -177,7 +177,11 @@ const changeUserRole = async (req, res) => {
             message: `Your role has been changed to ${role}`,
             user: id,
         });
-        await EmailService_1.emailService.sendRoleChangeEmail(user.email, role);
+        // Send email asynchronously to prevent blocking
+        EmailService_1.emailService.sendRoleChangeEmail(user.email, role).catch((error) => {
+            console.error('❌ Role change email failed (non-blocking):', error instanceof Error ? error.message : error);
+            console.error('Full error:', error);
+        });
         socket_1.socketManager.emitRoleChanged(id, role);
         socket_1.socketManager.emitUserUpdated(id, { role });
         res.json({
