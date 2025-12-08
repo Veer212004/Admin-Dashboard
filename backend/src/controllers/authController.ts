@@ -158,7 +158,7 @@ export const login = async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    if (user.role === 'user' && !user.verified) {
+    if (!user.verified) {
       res.status(403).json({ message: 'Verify email' });
       return;
     }

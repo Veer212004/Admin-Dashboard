@@ -164,7 +164,7 @@ const login = async (req, res) => {
             res.status(401).json({ message: 'Invalid credentials' });
             return;
         }
-        if (user.role === 'user' && !user.verified) {
+        if (!user.verified) {
             res.status(403).json({ message: 'Verify email' });
             return;
         }
