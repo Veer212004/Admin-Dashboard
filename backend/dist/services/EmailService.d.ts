@@ -7,7 +7,9 @@ interface EmailOptions {
 declare class EmailService {
     private transporter;
     private isInitialized;
+    private sendgridConfigured;
     constructor();
+    private initializeSendGrid;
     private initializeTransporter;
     sendEmail(options: EmailOptions): Promise<void>;
     sendVerificationEmail(email: string, token: string): Promise<void>;

@@ -5,11 +5,32 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.emailService = void 0;
 const nodemailer_1 = __importDefault(require("nodemailer"));
+const mail_1 = __importDefault(require("@sendgrid/mail"));
 class EmailService {
     constructor() {
         this.transporter = null;
         this.isInitialized = false;
+        this.sendgridConfigured = false;
         console.log('[EmailService] EmailService instance created');
+        this.initializeSendGrid();
+    }
+    initializeSendGrid() {
+        const sendgridApiKey = process.env.SENDGRID_API_KEY;
+        if (sendgridApiKey) {
+            console.log('[EmailService] Initializing SendGrid...');
+            try {
+                mail_1.default.setApiKey(sendgridApiKey);
+                this.sendgridConfigured = true;
+                console.log('[EmailService] ✓ SendGrid initialized successfully');
+            }
+            catch (error) {
+                console.error('[EmailService] ✗ SendGrid initialization failed:', error);
+                this.sendgridConfigured = false;
+            }
+        }
+        else {
+            console.log('[EmailService] SendGrid not configured. Will use SMTP fallback.');
+        }
     }
     initializeTransporter() {
         if (this.isInitialized)
@@ -71,13 +92,35 @@ class EmailService {
         }
     }
     async sendEmail(options) {
+        // Try SendGrid first (works on all platforms including Render)
+        if (this.sendgridConfigured) {
+            try {
+                console.log(`[EmailService] Sending email via SendGrid to ${options.to}...`);
+                const msg = {
+                    to: options.to,
+                    from: process.env.EMAIL_FROM || 'noreply@meandashboard.local',
+                    subject: options.subject,
+                    html: options.html,
+                    text: options.text || options.subject,
+                };
+                const result = await mail_1.default.send(msg);
+                console.log(`[EmailService] ✓ Email sent successfully via SendGrid`);
+                return;
+            }
+            catch (error) {
+                console.error('[EmailService] ✗ SendGrid send failed:', error?.message);
+                console.error('[EmailService] Falling back to SMTP...');
+                // Fall through to SMTP fallback
+            }
+        }
+        // Fallback to SMTP (for localhost development)
         this.initializeTransporter();
         if (!this.transporter) {
-            console.warn('[EmailService] ⚠️ Email disabled: SMTP not configured. Skipping send.');
+            console.warn('[EmailService] ⚠️ Email disabled: No email provider configured. Skipping send.');
             return;
         }
         try {
-            console.log(`[EmailService] Attempting to send email to ${options.to}...`);
+            console.log(`[EmailService] Attempting to send email via SMTP to ${options.to}...`);
             const result = await this.transporter.sendMail({
                 from: process.env.EMAIL_FROM || 'noreply@meandashboard.local',
                 to: options.to,
@@ -85,7 +128,7 @@ class EmailService {
                 html: options.html,
                 text: options.text,
             });
-            console.log(`[EmailService] ✓ Email sent successfully:`, result.messageId);
+            console.log(`[EmailService] ✓ Email sent successfully via SMTP:`, result.messageId);
         }
         catch (error) {
             console.error('[EmailService] ✗ Email send failed:', error?.message);
