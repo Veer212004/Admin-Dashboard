@@ -13,25 +13,25 @@ import { takeUntil, interval } from 'rxjs';
   template: `
     <div class="space-y-6">
       <!-- Header Section -->
-      <div class="bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 rounded-2xl shadow-lg p-6 border border-indigo-100">
-        <div class="flex items-center justify-between mb-6">
+      <div class="bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 rounded-2xl shadow-lg p-4 md:p-6 border border-indigo-100">
+        <div class="flex flex-col md:flex-row md:items-center md:justify-between mb-6 gap-4">
           <div>
-            <h1 class="text-3xl font-bold text-slate-900 flex items-center gap-3">
-              <div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg">
-                <span class="text-2xl">⚡</span>
+            <h1 class="text-2xl md:text-3xl font-bold text-slate-900 flex items-center gap-3">
+              <div class="w-10 h-10 md:w-12 md:h-12 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg">
+                <span class="text-xl md:text-2xl">⚡</span>
               </div>
               Active Sessions
             </h1>
-            <p class="text-sm text-slate-500 mt-2">Monitor and manage user sessions in real-time</p>
+            <p class="text-xs md:text-sm text-slate-500 mt-2">Monitor and manage user sessions in real-time</p>
           </div>
-          <div class="flex gap-3">
-            <div class="px-5 py-3 bg-white rounded-xl shadow-sm border border-slate-200">
+          <div class="flex gap-2 md:gap-3">
+            <div class="flex-1 md:flex-none px-3 md:px-5 py-2 md:py-3 bg-white rounded-xl shadow-sm border border-slate-200">
               <span class="text-xs text-slate-500 block">Total Active</span>
-              <p class="text-2xl font-bold text-indigo-600">{{ total }}</p>
+              <p class="text-xl md:text-2xl font-bold text-indigo-600">{{ sessions.length }}</p>
             </div>
-            <div class="px-5 py-3 bg-white rounded-xl shadow-sm border border-slate-200">
+            <div class="flex-1 md:flex-none px-3 md:px-5 py-2 md:py-3 bg-white rounded-xl shadow-sm border border-slate-200">
               <span class="text-xs text-slate-500 block">Current Page</span>
-              <p class="text-2xl font-bold text-purple-600">{{ page }}/{{ pages }}</p>
+              <p class="text-xl md:text-2xl font-bold text-purple-600">{{ page }}/{{ pages }}</p>
             </div>
           </div>
         </div>
@@ -39,8 +39,65 @@ import { takeUntil, interval } from 'rxjs';
         <!-- Enhanced Session Cards -->
         <div class="space-y-3">
           <div *ngFor="let session of sessions" 
-               class="bg-white rounded-xl shadow-sm border border-slate-200 p-5 hover:shadow-md transition-all duration-200 hover:border-indigo-200">
-            <div class="flex items-center justify-between gap-4">
+               class="bg-white rounded-xl shadow-sm border border-slate-200 p-3 md:p-5 hover:shadow-md transition-all duration-200 hover:border-indigo-200">
+            <!-- Mobile Layout -->
+            <div class="md:hidden space-y-3">
+              <!-- User Info -->
+              <div class="flex items-center gap-3">
+                <div class="relative">
+                  <div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-indigo-400 to-purple-600 flex items-center justify-center text-white font-bold text-lg shadow-md">
+                    {{ getInitials(session.user.name) }}
+                  </div>
+                  <div class="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 border-2 border-white rounded-full animate-pulse"></div>
+                </div>
+                <div class="flex-1 min-w-0">
+                  <div class="flex items-center gap-2">
+                    <h3 class="text-sm font-semibold text-slate-900 truncate">{{ session.user.name }}</h3>
+                    <span class="px-2 py-0.5 bg-green-50 text-green-700 text-xs font-semibold rounded-lg border border-green-200 shrink-0">Active</span>
+                  </div>
+                  <p class="text-xs text-slate-500 truncate">{{ session.user.email }}</p>
+                </div>
+              </div>
+
+              <!-- Session Details Grid -->
+              <div class="grid grid-cols-2 gap-2">
+                <div class="bg-blue-50 rounded-lg p-2 border border-blue-100">
+                  <div class="flex items-center gap-1 mb-1">
+                    <span class="text-sm">🕐</span>
+                    <span class="text-xs text-slate-600 font-medium">Started</span>
+                  </div>
+                  <p class="text-xs font-semibold text-slate-900">{{ session.startedAt | date: 'short' }}</p>
+                </div>
+                <div class="bg-purple-50 rounded-lg p-2 border border-purple-100">
+                  <div class="flex items-center gap-1 mb-1">
+                    <span class="text-sm">⏱️</span>
+                    <span class="text-xs text-slate-600 font-medium">Duration</span>
+                  </div>
+                  <p class="text-xs font-bold text-purple-600">{{ formatDuration(session.duration || 0) }}</p>
+                </div>
+              </div>
+
+              <!-- IP & Device -->
+              <div class="bg-indigo-50 rounded-lg p-2 border border-indigo-100">
+                <div class="flex items-center gap-1 mb-1">
+                  <span class="text-sm">🌐</span>
+                  <span class="text-xs text-slate-600 font-medium">Location & Device</span>
+                </div>
+                <p class="text-xs font-semibold text-slate-700">{{ session.ip || 'N/A' }}</p>
+                <p class="text-xs text-slate-500">{{ session.device || 'Unknown Device' }}</p>
+              </div>
+
+              <!-- Terminate Button -->
+              <button
+                (click)="terminateSession(session._id)"
+                class="w-full px-3 py-2 bg-red-50 hover:bg-red-100 text-red-700 font-semibold rounded-xl transition-colors border border-red-200 flex items-center justify-center gap-2">
+                <span class="text-base">🚫</span>
+                <span class="text-sm">Terminate Session</span>
+              </button>
+            </div>
+
+            <!-- Desktop Layout -->
+            <div class="hidden md:flex items-center justify-between gap-4">
               <!-- User Info -->
               <div class="flex items-center gap-4 flex-1">
                 <div class="relative">
@@ -114,23 +171,23 @@ import { takeUntil, interval } from 'rxjs';
         </div>
 
         <!-- Pagination -->
-        <div class="mt-6 flex justify-between items-center bg-white rounded-xl p-4 border border-slate-200 shadow-sm">
-          <span class="text-slate-600 font-medium">Showing {{ sessions.length }} of {{ total }} sessions</span>
-          <div class="flex gap-2">
+        <div class="mt-6 flex flex-col md:flex-row justify-between items-center gap-3 bg-white rounded-xl p-3 md:p-4 border border-slate-200 shadow-sm">
+          <span class="text-sm md:text-base text-slate-600 font-medium">Showing {{ sessions.length }} of {{ total }} sessions</span>
+          <div class="flex gap-2 w-full md:w-auto">
             <button
               [disabled]="page === 1"
               (click)="previousPage()"
-              class="px-5 py-2 bg-white border border-slate-300 rounded-xl disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-50 transition font-medium text-slate-700"
+              class="flex-1 md:flex-none px-3 md:px-5 py-2 bg-white border border-slate-300 rounded-xl disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-50 transition font-medium text-slate-700 text-sm"
             >
               ← Previous
             </button>
-            <div class="px-5 py-2 bg-indigo-50 border border-indigo-200 rounded-xl font-semibold text-indigo-700">
+            <div class="flex-1 md:flex-none px-3 md:px-5 py-2 bg-indigo-50 border border-indigo-200 rounded-xl font-semibold text-indigo-700 text-sm text-center">
               Page {{ page }} of {{ pages }}
             </div>
             <button
               [disabled]="page === pages"
               (click)="nextPage()"
-              class="px-5 py-2 bg-white border border-slate-300 rounded-xl disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-50 transition font-medium text-slate-700"
+              class="flex-1 md:flex-none px-3 md:px-5 py-2 bg-white border border-slate-300 rounded-xl disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-50 transition font-medium text-slate-700 text-sm"
             >
               Next →
             </button>
