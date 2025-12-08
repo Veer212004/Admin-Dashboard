@@ -154,6 +154,9 @@ class EmailService {
             }
         }
         const verificationUrl = `${frontendUrl}/verify-email?token=${token}&email=${encodeURIComponent(email)}`;
+        console.log('[EmailService] Verification URL:', verificationUrl);
+        console.log('[EmailService] Environment:', process.env.NODE_ENV);
+        console.log('[EmailService] Selected frontend URL:', frontendUrl);
         await this.sendEmail({
             to: email,
             subject: 'Verify Your Email Address - Admin Dashboard Platform',
