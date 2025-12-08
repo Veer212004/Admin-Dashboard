@@ -153,20 +153,14 @@ class EmailService {
   }
 
   async sendVerificationEmail(email: string, token: string): Promise<void> {
-    // Get frontend URL - prefer production URL in production environment
+    // Get frontend URL - always prefer production URL when available
     let frontendUrl = process.env.FRONTEND_URL || 'http://localhost:4200';
     
-    // If multiple URLs (comma-separated), pick the right one based on environment
+    // If multiple URLs (comma-separated), always use the first non-localhost URL for emails
     if (frontendUrl.includes(',')) {
       const urls = frontendUrl.split(',').map(url => url.trim());
-      
-      // In production, use the first non-localhost URL
-      if (process.env.NODE_ENV === 'production') {
-        frontendUrl = urls.find(url => !url.includes('localhost')) || urls[0];
-      } else {
-        // In development, prefer localhost
-        frontendUrl = urls.find(url => url.includes('localhost')) || urls[0];
-      }
+      // Always prefer production URL (non-localhost) for email links
+      frontendUrl = urls.find(url => !url.includes('localhost')) || urls[0];
     }
     
     const verificationUrl = `${frontendUrl}/verify-email?token=${token}&email=${encodeURIComponent(email)}`;
@@ -334,20 +328,14 @@ class EmailService {
   }
 
   async sendPasswordResetEmail(email: string, token: string): Promise<void> {
-    // Get frontend URL - prefer production URL in production environment
+    // Get frontend URL - always prefer production URL when available
     let frontendUrl = process.env.FRONTEND_URL || 'http://localhost:4200';
     
-    // If multiple URLs (comma-separated), pick the right one based on environment
+    // If multiple URLs (comma-separated), always use the first non-localhost URL for emails
     if (frontendUrl.includes(',')) {
       const urls = frontendUrl.split(',').map(url => url.trim());
-      
-      // In production, use the first non-localhost URL
-      if (process.env.NODE_ENV === 'production') {
-        frontendUrl = urls.find(url => !url.includes('localhost')) || urls[0];
-      } else {
-        // In development, prefer localhost
-        frontendUrl = urls.find(url => url.includes('localhost')) || urls[0];
-      }
+      // Always prefer production URL (non-localhost) for email links
+      frontendUrl = urls.find(url => !url.includes('localhost')) || urls[0];
     }
     
     const resetUrl = `${frontendUrl}/reset-password?token=${token}&email=${encodeURIComponent(email)}`;
