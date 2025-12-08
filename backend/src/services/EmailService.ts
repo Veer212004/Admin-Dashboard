@@ -1,6 +1,4 @@
 import nodemailer, { Transporter } from 'nodemailer';
-import formData from 'form-data';
-import Mailgun from 'mailgun.js';
 
 interface EmailOptions {
   to: string;
@@ -11,145 +9,101 @@ interface EmailOptions {
 
 class EmailService {
   private transporter: Transporter | null = null;
-  private mailgunClient: any = null;
-  private verificationPromise: Promise<boolean> | null = null;
-  private emailProvider: 'mailgun' | 'smtp' | 'disabled' = 'disabled';
+  private isInitialized = false;
 
   constructor() {
     console.log('[EmailService] EmailService instance created');
-    this.initializeMailgun();
-  }
-
-  private initializeMailgun() {
-    const mailgunApiKey = process.env.MAILGUN_API_KEY;
-    const mailgunDomain = process.env.MAILGUN_DOMAIN;
-    
-    if (mailgunApiKey && mailgunDomain) {
-      console.log('[EmailService] Initializing Mailgun with domain:', mailgunDomain);
-      try {
-        const mailgun = new Mailgun(formData);
-        this.mailgunClient = mailgun.client({
-          username: 'api',
-          key: mailgunApiKey,
-        });
-        this.emailProvider = 'mailgun';
-        console.log('[EmailService] ✓ Mailgun initialized successfully');
-      } catch (error) {
-        console.error('[EmailService] ✗ Mailgun initialization failed:', error);
-        this.mailgunClient = null;
-      }
-    } else {
-      console.log('[EmailService] Mailgun not configured. Checking SMTP...');
-    }
   }
 
   private initializeTransporter() {
-    if (this.transporter || this.emailProvider === 'mailgun') return; // Already initialized or using Mailgun
+    if (this.isInitialized) return;
+    this.isInitialized = true;
     
     const smtpHost = process.env.SMTP_HOST;
-    console.log('[EmailService] SMTP_HOST:', smtpHost);
-    console.log('[EmailService] SMTP_PORT:', process.env.SMTP_PORT);
-    console.log('[EmailService] SMTP_USER:', process.env.SMTP_USER);
+    const smtpUser = process.env.SMTP_USER;
     
-    if (!smtpHost) {
-      console.warn('[EmailService] SMTP_HOST not set. Email disabled.');
+    if (!smtpHost || !smtpUser) {
+      console.warn('[EmailService] ⚠️ SMTP not configured. Email functionality disabled.');
       return;
     }
     
-    this.emailProvider = 'smtp';
+    console.log('[EmailService] Initializing SMTP...');
+    console.log('[EmailService] SMTP_HOST:', smtpHost);
+    console.log('[EmailService] SMTP_USER:', smtpUser);
     
-    const smtpPort = parseInt(process.env.SMTP_PORT || '465');
+    const smtpPort = parseInt(process.env.SMTP_PORT || '587');
     const isGmail = smtpHost.includes('gmail');
     
-    // For platforms like Render that block port 587, use port 465 (SSL) instead
+    // Use port 587 with STARTTLS (standard) or 465 with SSL
     const useSSL = smtpPort === 465;
     
-    console.log('[EmailService] Configuring SMTP with port:', smtpPort, 'SSL:', useSSL);
+    console.log('[EmailService] Configuring SMTP - Port:', smtpPort, 'SSL:', useSSL);
     
-    this.transporter = nodemailer.createTransport({
-      host: smtpHost,
-      port: smtpPort,
-      secure: useSSL,
-      auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASS,
-      },
-      // Gmail-specific settings
-      ...(isGmail && {
-        service: 'gmail',
-      }),
-      // Prevent long hangs when SMTP is unreachable
-      connectionTimeout: parseInt(process.env.SMTP_CONNECTION_TIMEOUT || '15000'),
-      greetingTimeout: parseInt(process.env.SMTP_GREETING_TIMEOUT || '10000'),
-      socketTimeout: parseInt(process.env.SMTP_SOCKET_TIMEOUT || '15000'),
-      // TLS settings
-      tls: { 
-        rejectUnauthorized: process.env.SMTP_REJECT_UNAUTHORIZED !== 'false',
-        minVersion: 'TLSv1.2',
-        ciphers: 'HIGH:!aNULL:!eNULL:!EXPORT:!DES:!RC4:!MD5:!PSK:!SRP:!CAMELLIA'
-      },
-      debug: process.env.NODE_ENV !== 'production',
-      logger: process.env.NODE_ENV !== 'production',
-    });
-
-    // Verify transporter connectivity asynchronously
-    // Don't block on verification - let actual send attempts reveal issues
-    this.verificationPromise = this.transporter.verify()
-      .then(() => {
-        console.log('[EmailService] ✓ SMTP transporter verified successfully');
-        return true;
-      })
-      .catch((err) => {
-        console.error('[EmailService] ✗ SMTP verification failed:', err?.message || err);
-        console.error('[EmailService] Error code:', err?.code);
-        console.error('[EmailService] Error response:', err?.response);
-        console.error('[EmailService] Full error:', err);
-        // Still return false but don't prevent initialization
-        return false;
+    try {
+      this.transporter = nodemailer.createTransport({
+        host: smtpHost,
+        port: smtpPort,
+        secure: useSSL, // true for 465, false for other ports
+        auth: {
+          user: smtpUser,
+          pass: process.env.SMTP_PASS,
+        },
+        // Gmail-specific settings
+        ...(isGmail && {
+          service: 'gmail',
+        }),
+        // Optimize timeouts for faster failure detection
+        connectionTimeout: 10000, // 10 seconds
+        greetingTimeout: 10000,
+        socketTimeout: 10000,
+        // TLS settings for port 587
+        tls: { 
+          rejectUnauthorized: false, // Allow self-signed certs for testing
+          minVersion: 'TLSv1.2',
+        },
+        debug: process.env.NODE_ENV !== 'production',
+        logger: process.env.NODE_ENV !== 'production',
       });
+
+      // Test connection immediately
+      this.transporter.verify()
+        .then(() => {
+          console.log('[EmailService] ✓ SMTP connection verified successfully');
+        })
+        .catch((err) => {
+          console.error('[EmailService] ✗ SMTP verification failed:', err?.message);
+          console.error('[EmailService] Note: This is expected on Render (SMTP ports blocked)');
+          // Don't null the transporter - let individual sends fail gracefully
+        });
+    } catch (error) {
+      console.error('[EmailService] ✗ SMTP initialization error:', error);
+      this.transporter = null;
+    }
   }
 
   async sendEmail(options: EmailOptions): Promise<void> {
-    // Try Mailgun first (works on Render)
-    if (this.emailProvider === 'mailgun' && this.mailgunClient) {
-      try {
-        console.log(`[EmailService] Sending email via Mailgun to ${options.to}...`);
-        const mailgunDomain = process.env.MAILGUN_DOMAIN!;
-        const result = await this.mailgunClient.messages.create(mailgunDomain, {
-          from: process.env.EMAIL_FROM || `Admin Dashboard <noreply@${mailgunDomain}>`,
-          to: [options.to],
-          subject: options.subject,
-          html: options.html,
-          text: options.text || options.subject,
-        });
-        console.log(`[EmailService] ✓ Email sent successfully via Mailgun:`, result.id);
-        return;
-      } catch (error) {
-        console.error('[EmailService] ✗ Mailgun send failed:', error);
-        throw error;
-      }
-    }
-
-    // Fallback to SMTP (for localhost development)
     this.initializeTransporter();
     
     if (!this.transporter) {
-      console.warn('[EmailService] Email disabled: No email provider configured. Skipping send.');
+      console.warn('[EmailService] ⚠️ Email disabled: SMTP not configured. Skipping send.');
       return;
     }
 
     try {
-      console.log(`[EmailService] Sending email via SMTP to ${options.to}...`);
-      const result = await this.transporter!.sendMail({
+      console.log(`[EmailService] Attempting to send email to ${options.to}...`);
+      const result = await this.transporter.sendMail({
         from: process.env.EMAIL_FROM || 'noreply@meandashboard.local',
         to: options.to,
         subject: options.subject,
         html: options.html,
         text: options.text,
       });
-      console.log(`[EmailService] ✓ Email sent successfully via SMTP:`, result);
-    } catch (error) {
-      console.error('[EmailService] ✗ Email send failed:', error);
+      console.log(`[EmailService] ✓ Email sent successfully:`, result.messageId);
+    } catch (error: any) {
+      console.error('[EmailService] ✗ Email send failed:', error?.message);
+      if (error?.code === 'ETIMEDOUT' || error?.code === 'ECONNECTION') {
+        console.error('[EmailService] Connection timeout - SMTP likely blocked by hosting platform');
+      }
       throw error;
     }
   }

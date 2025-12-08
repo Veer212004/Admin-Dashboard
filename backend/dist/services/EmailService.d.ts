@@ -6,11 +6,8 @@ interface EmailOptions {
 }
 declare class EmailService {
     private transporter;
-    private mailgunClient;
-    private verificationPromise;
-    private emailProvider;
+    private isInitialized;
     constructor();
-    private initializeMailgun;
     private initializeTransporter;
     sendEmail(options: EmailOptions): Promise<void>;
     sendVerificationEmail(email: string, token: string): Promise<void>;
