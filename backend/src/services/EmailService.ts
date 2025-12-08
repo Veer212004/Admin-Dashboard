@@ -1,4 +1,6 @@
 import nodemailer, { Transporter } from 'nodemailer';
+import formData from 'form-data';
+import Mailgun from 'mailgun.js';
 
 interface EmailOptions {
   to: string;
@@ -9,14 +11,40 @@ interface EmailOptions {
 
 class EmailService {
   private transporter: Transporter | null = null;
+  private mailgunClient: any = null;
   private verificationPromise: Promise<boolean> | null = null;
+  private emailProvider: 'mailgun' | 'smtp' | 'disabled' = 'disabled';
 
   constructor() {
     console.log('[EmailService] EmailService instance created');
+    this.initializeMailgun();
+  }
+
+  private initializeMailgun() {
+    const mailgunApiKey = process.env.MAILGUN_API_KEY;
+    const mailgunDomain = process.env.MAILGUN_DOMAIN;
+    
+    if (mailgunApiKey && mailgunDomain) {
+      console.log('[EmailService] Initializing Mailgun with domain:', mailgunDomain);
+      try {
+        const mailgun = new Mailgun(formData);
+        this.mailgunClient = mailgun.client({
+          username: 'api',
+          key: mailgunApiKey,
+        });
+        this.emailProvider = 'mailgun';
+        console.log('[EmailService] ✓ Mailgun initialized successfully');
+      } catch (error) {
+        console.error('[EmailService] ✗ Mailgun initialization failed:', error);
+        this.mailgunClient = null;
+      }
+    } else {
+      console.log('[EmailService] Mailgun not configured. Checking SMTP...');
+    }
   }
 
   private initializeTransporter() {
-    if (this.transporter) return; // Already initialized
+    if (this.transporter || this.emailProvider === 'mailgun') return; // Already initialized or using Mailgun
     
     const smtpHost = process.env.SMTP_HOST;
     console.log('[EmailService] SMTP_HOST:', smtpHost);
@@ -27,6 +55,8 @@ class EmailService {
       console.warn('[EmailService] SMTP_HOST not set. Email disabled.');
       return;
     }
+    
+    this.emailProvider = 'smtp';
     
     const smtpPort = parseInt(process.env.SMTP_PORT || '465');
     const isGmail = smtpHost.includes('gmail');
@@ -80,16 +110,36 @@ class EmailService {
   }
 
   async sendEmail(options: EmailOptions): Promise<void> {
+    // Try Mailgun first (works on Render)
+    if (this.emailProvider === 'mailgun' && this.mailgunClient) {
+      try {
+        console.log(`[EmailService] Sending email via Mailgun to ${options.to}...`);
+        const mailgunDomain = process.env.MAILGUN_DOMAIN!;
+        const result = await this.mailgunClient.messages.create(mailgunDomain, {
+          from: process.env.EMAIL_FROM || `Admin Dashboard <noreply@${mailgunDomain}>`,
+          to: [options.to],
+          subject: options.subject,
+          html: options.html,
+          text: options.text || options.subject,
+        });
+        console.log(`[EmailService] ✓ Email sent successfully via Mailgun:`, result.id);
+        return;
+      } catch (error) {
+        console.error('[EmailService] ✗ Mailgun send failed:', error);
+        throw error;
+      }
+    }
+
+    // Fallback to SMTP (for localhost development)
     this.initializeTransporter();
     
     if (!this.transporter) {
-      console.warn('[EmailService] Email disabled: SMTP not configured. Skipping send.');
+      console.warn('[EmailService] Email disabled: No email provider configured. Skipping send.');
       return;
     }
 
-    // Try to send - if it fails, log but don't crash
     try {
-      console.log(`[EmailService] Sending email to ${options.to}...`);
+      console.log(`[EmailService] Sending email via SMTP to ${options.to}...`);
       const result = await this.transporter!.sendMail({
         from: process.env.EMAIL_FROM || 'noreply@meandashboard.local',
         to: options.to,
@@ -97,9 +147,9 @@ class EmailService {
         html: options.html,
         text: options.text,
       });
-      console.log(`[EmailService] Email sent successfully:`, result);
+      console.log(`[EmailService] ✓ Email sent successfully via SMTP:`, result);
     } catch (error) {
-      console.error('[EmailService] Email send failed:', error);
+      console.error('[EmailService] ✗ Email send failed:', error);
       throw error;
     }
   }

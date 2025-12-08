@@ -5,15 +5,43 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.emailService = void 0;
 const nodemailer_1 = __importDefault(require("nodemailer"));
+const form_data_1 = __importDefault(require("form-data"));
+const mailgun_js_1 = __importDefault(require("mailgun.js"));
 class EmailService {
     constructor() {
         this.transporter = null;
+        this.mailgunClient = null;
         this.verificationPromise = null;
+        this.emailProvider = 'disabled';
         console.log('[EmailService] EmailService instance created');
+        this.initializeMailgun();
+    }
+    initializeMailgun() {
+        const mailgunApiKey = process.env.MAILGUN_API_KEY;
+        const mailgunDomain = process.env.MAILGUN_DOMAIN;
+        if (mailgunApiKey && mailgunDomain) {
+            console.log('[EmailService] Initializing Mailgun with domain:', mailgunDomain);
+            try {
+                const mailgun = new mailgun_js_1.default(form_data_1.default);
+                this.mailgunClient = mailgun.client({
+                    username: 'api',
+                    key: mailgunApiKey,
+                });
+                this.emailProvider = 'mailgun';
+                console.log('[EmailService] ✓ Mailgun initialized successfully');
+            }
+            catch (error) {
+                console.error('[EmailService] ✗ Mailgun initialization failed:', error);
+                this.mailgunClient = null;
+            }
+        }
+        else {
+            console.log('[EmailService] Mailgun not configured. Checking SMTP...');
+        }
     }
     initializeTransporter() {
-        if (this.transporter)
-            return; // Already initialized
+        if (this.transporter || this.emailProvider === 'mailgun')
+            return; // Already initialized or using Mailgun
         const smtpHost = process.env.SMTP_HOST;
         console.log('[EmailService] SMTP_HOST:', smtpHost);
         console.log('[EmailService] SMTP_PORT:', process.env.SMTP_PORT);
@@ -22,6 +50,7 @@ class EmailService {
             console.warn('[EmailService] SMTP_HOST not set. Email disabled.');
             return;
         }
+        this.emailProvider = 'smtp';
         const smtpPort = parseInt(process.env.SMTP_PORT || '465');
         const isGmail = smtpHost.includes('gmail');
         // For platforms like Render that block port 587, use port 465 (SSL) instead
@@ -69,14 +98,34 @@ class EmailService {
         });
     }
     async sendEmail(options) {
+        // Try Mailgun first (works on Render)
+        if (this.emailProvider === 'mailgun' && this.mailgunClient) {
+            try {
+                console.log(`[EmailService] Sending email via Mailgun to ${options.to}...`);
+                const mailgunDomain = process.env.MAILGUN_DOMAIN;
+                const result = await this.mailgunClient.messages.create(mailgunDomain, {
+                    from: process.env.EMAIL_FROM || `Admin Dashboard <noreply@${mailgunDomain}>`,
+                    to: [options.to],
+                    subject: options.subject,
+                    html: options.html,
+                    text: options.text || options.subject,
+                });
+                console.log(`[EmailService] ✓ Email sent successfully via Mailgun:`, result.id);
+                return;
+            }
+            catch (error) {
+                console.error('[EmailService] ✗ Mailgun send failed:', error);
+                throw error;
+            }
+        }
+        // Fallback to SMTP (for localhost development)
         this.initializeTransporter();
         if (!this.transporter) {
-            console.warn('[EmailService] Email disabled: SMTP not configured. Skipping send.');
+            console.warn('[EmailService] Email disabled: No email provider configured. Skipping send.');
             return;
         }
-        // Try to send - if it fails, log but don't crash
         try {
-            console.log(`[EmailService] Sending email to ${options.to}...`);
+            console.log(`[EmailService] Sending email via SMTP to ${options.to}...`);
             const result = await this.transporter.sendMail({
                 from: process.env.EMAIL_FROM || 'noreply@meandashboard.local',
                 to: options.to,
@@ -84,10 +133,10 @@ class EmailService {
                 html: options.html,
                 text: options.text,
             });
-            console.log(`[EmailService] Email sent successfully:`, result);
+            console.log(`[EmailService] ✓ Email sent successfully via SMTP:`, result);
         }
         catch (error) {
-            console.error('[EmailService] Email send failed:', error);
+            console.error('[EmailService] ✗ Email send failed:', error);
             throw error;
         }
     }
