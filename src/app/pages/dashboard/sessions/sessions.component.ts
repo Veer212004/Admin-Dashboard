@@ -236,6 +236,11 @@ export class SessionsComponent implements OnInit, OnDestroy {
   private setupRealtime(): void {
     this.socketService.on<any>('sessionEnded').pipe(takeUntil(this.destroy$)).subscribe((data) => {
       this.sessions = this.sessions.filter(s => s._id !== data.sessionId);
+      this.total = Math.max(0, this.total - 1);
+    });
+
+    this.socketService.on<any>('sessionCreated').pipe(takeUntil(this.destroy$)).subscribe(() => {
+      this.loadSessions();
     });
   }
 
