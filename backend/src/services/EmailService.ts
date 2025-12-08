@@ -83,12 +83,11 @@ class EmailService {
     this.initializeTransporter();
     
     if (!this.transporter) {
-      console.warn('[EmailService] Email disabled: SMTP_HOST not set. Skipping send.');
+      console.warn('[EmailService] Email disabled: SMTP not configured. Skipping send.');
       return;
     }
 
-    // Try to send anyway - let the actual send fail with detailed error
-    // This way we get better error messages than just "not verified"
+    // Try to send - if it fails, log but don't crash
     try {
       console.log(`[EmailService] Sending email to ${options.to}...`);
       const result = await this.transporter!.sendMail({
